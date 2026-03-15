@@ -557,3 +557,61 @@ Thanks to all clawtributors:
   <a href="https://github.com/testingabc321"><img src="https://avatars.githubusercontent.com/u/8577388?v=4&s=48" width="48" height="48" alt="testingabc321" title="testingabc321"/></a> <a href="https://github.com/humanwritten"><img src="https://avatars.githubusercontent.com/u/206531610?v=4&s=48" width="48" height="48" alt="humanwritten" title="humanwritten"/></a> <a href="https://github.com/aaronn"><img src="https://avatars.githubusercontent.com/u/1653630?v=4&s=48" width="48" height="48" alt="aaronn" title="aaronn"/></a> <a href="https://github.com/Alphonse-arianee"><img src="https://avatars.githubusercontent.com/u/254457365?v=4&s=48" width="48" height="48" alt="Alphonse-arianee" title="Alphonse-arianee"/></a> <a href="https://github.com/gtsifrikas"><img src="https://avatars.githubusercontent.com/u/8904378?v=4&s=48" width="48" height="48" alt="gtsifrikas" title="gtsifrikas"/></a> <a href="https://github.com/hrdwdmrbl"><img src="https://avatars.githubusercontent.com/u/554881?v=4&s=48" width="48" height="48" alt="hrdwdmrbl" title="hrdwdmrbl"/></a> <a href="https://github.com/hugobarauna"><img src="https://avatars.githubusercontent.com/u/2719?v=4&s=48" width="48" height="48" alt="hugobarauna" title="hugobarauna"/></a> <a href="https://github.com/jiulingyun"><img src="https://avatars.githubusercontent.com/u/126459548?v=4&s=48" width="48" height="48" alt="jiulingyun" title="jiulingyun"/></a> <a href="https://github.com/kitze"><img src="https://avatars.githubusercontent.com/u/1160594?v=4&s=48" width="48" height="48" alt="kitze" title="kitze"/></a> <a href="https://github.com/loukotal"><img src="https://avatars.githubusercontent.com/u/18210858?v=4&s=48" width="48" height="48" alt="loukotal" title="loukotal"/></a>
   <a href="https://github.com/MSch"><img src="https://avatars.githubusercontent.com/u/7475?v=4&s=48" width="48" height="48" alt="MSch" title="MSch"/></a> <a href="https://github.com/odrobnik"><img src="https://avatars.githubusercontent.com/u/333270?v=4&s=48" width="48" height="48" alt="odrobnik" title="odrobnik"/></a> <a href="https://github.com/reeltimeapps"><img src="https://avatars.githubusercontent.com/u/637338?v=4&s=48" width="48" height="48" alt="reeltimeapps" title="reeltimeapps"/></a> <a href="https://github.com/rhjoh"><img src="https://avatars.githubusercontent.com/u/105699450?v=4&s=48" width="48" height="48" alt="rhjoh" title="rhjoh"/></a> <a href="https://github.com/ronak-guliani"><img src="https://avatars.githubusercontent.com/u/23518228?v=4&s=48" width="48" height="48" alt="ronak-guliani" title="ronak-guliani"/></a> <a href="https://github.com/snopoke"><img src="https://avatars.githubusercontent.com/u/249606?v=4&s=48" width="48" height="48" alt="snopoke" title="snopoke"/></a>
 </p>
+
+---
+
+## Nate's Configuration
+
+This fork (`nate/custom` branch) adds two personal setups on top of upstream OpenClaw.
+
+### iMessage Bridge (Mac)
+
+A standalone Python bridge (`imessage_bridge.py`) that polls `~/Library/Messages/chat.db` and responds to iMessages containing the trigger word `claw`.
+
+**Requirements:** macOS, Python 3, OpenAI API key (`OPENAI_API_KEY` in environment).
+
+**Setup:** Copy `com.openclaw.imessage.plist` to `~/Library/LaunchAgents/` and load it with `launchctl load ~/Library/LaunchAgents/com.openclaw.imessage.plist`. Alternatively run `./start_openclaw_imessage.sh` directly.
+
+**Key files:**
+- `imessage_bridge.py` -- main bridge (polls chat.db, handles responses)
+- `chat_memory.py` -- per-chat conversation memory
+- `IDENTITY.md` -- system prompt / persona (gitignored, create your own)
+- `com.openclaw.imessage.plist` -- launchd plist for auto-start
+- `start_openclaw_imessage.sh` -- manual start script
+
+**Key customizations:**
+- Models: `gpt-4o-mini` (default), `gpt-4o-search-preview` (search/URL queries)
+- Stale message drop: messages older than 5 minutes are skipped (handles mac sleep wake)
+- Only explicit `claw` trigger responds; no followup auto-triggering
+- Monitored chats configured in `MONITORED_CHATS` array in `imessage_bridge.py`
+- URL fetch fallback chain: Jina -> curl -> Cloudflare Browser Rendering
+
+### Slack-to-Telegram Monitor (EC2)
+
+A TypeScript extension that runs on an EC2 instance, connecting OpenClaw's Slack integration to a Telegram bot for async monitoring. Important Slack messages are forwarded to Telegram so they can be reviewed without staying logged into Slack.
+
+**Architecture:** Slack socket mode receives messages, a two-tier classifier (fast rules then LLM) routes each message to one of three outcomes:
+- `IMMEDIATE` -- forwarded to Telegram right away (production issues, direct questions, keyword matches)
+- `DIGEST` -- queued and flushed in batches on a configurable interval (relevant but non-urgent)
+- `DROP` -- discarded (bot messages, system events, noise)
+
+**Key files:**
+- `src/slack/monitor/triage/classify.ts` -- rule-based + LLM classification
+- `src/slack/monitor/triage/digest-queue.ts` -- batch message queue
+- `src/slack/monitor/triage/digest-cron.ts` -- periodic flush (configurable interval)
+- `src/slack/monitor/triage/types.ts` -- shared types
+- `src/slack/monitor/message-handler/dispatch.ts` -- triage integration point
+- `src/slack/monitor/channel-config.ts` -- per-channel triage config
+- `src/slack/resolve-channels.ts` -- channel resolution with monitor-only support
+- `src/agents/tools/slack-actions.ts` -- Slack tool actions
+- `src/config/types.slack.ts` -- config type definitions
+- `src/config/zod-schema.providers-core.ts` -- Zod schema for provider config
+
+**Config fields added to Slack provider config:**
+- `monitorOnly` -- read Slack without sending (no bot responses)
+- `triageEnabled` -- enable Slack-to-Telegram forwarding
+- `triageModel` -- LLM model for classification
+- `triageImmediateKeywords` -- keywords that trigger immediate forwarding
+- `triageDigestIntervalMs` -- interval between digest flushes
+
+**DIN tools plugin:** `~/.openclaw/extensions/din-tools/` wraps the `din` CLI to expose gateway health, error logs, and watcher status as OpenClaw tools.
