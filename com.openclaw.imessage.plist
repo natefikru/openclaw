@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd plist for the OpenClaw iMessage bridge.
+
+  Install:
+    cp com.openclaw.imessage.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.openclaw.imessage.plist
+
+  Uninstall:
+    launchctl bootout gui/$UID ~/Library/LaunchAgents/com.openclaw.imessage.plist
+    rm ~/Library/LaunchAgents/com.openclaw.imessage.plist
+
+  Check status:
+    launchctl print gui/$UID/com.openclaw.imessage
+
+  View logs:
+    tail -f ~/Library/Logs/openclaw-imessage.log
+    tail -f ~/Library/Logs/openclaw-imessage-error.log
+-->
+<plist version="1.0">
+<dict>
+    <!-- Unique label for this agent -->
+    <key>Label</key>
+    <string>com.openclaw.imessage</string>
+
+    <!-- Command to run: python3 /path/to/imessage_bridge.py -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>REPLACE_WITH_ABSOLUTE_PATH/imessage_bridge.py</string>
+    </array>
+
+    <!-- Working directory (must be the openclaw project root) -->
+    <key>WorkingDirectory</key>
+    <string>REPLACE_WITH_ABSOLUTE_PATH</string>
+
+    <!-- Restart automatically if the process exits -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Start when the user logs in -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Log output paths -->
+    <key>StandardOutPath</key>
+    <string>REPLACE_WITH_HOME/Library/Logs/openclaw-imessage.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>REPLACE_WITH_HOME/Library/Logs/openclaw-imessage-error.log</string>
+
+    <!-- Provide a reasonable PATH so python3 and node can find each other -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/opt/homebrew/sbin</string>
+        <key>HOME</key>
+        <string>REPLACE_WITH_HOME</string>
+    </dict>
+
+    <!-- Throttle restarts: wait at least 10s before relaunching after a crash -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>

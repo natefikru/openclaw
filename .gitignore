@@ -85,6 +85,8 @@ docs/.local/
 tmp/
 IDENTITY.md
 USER.md
+.last_rowid*
+chad-green-chat-analysis.md
 .tgz
 .idea
 
