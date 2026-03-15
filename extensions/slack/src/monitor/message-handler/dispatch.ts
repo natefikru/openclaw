@@ -10,6 +10,7 @@ import { createTypingCallbacks } from "../../../../../src/channels/typing.js";
 import { resolveStorePath, updateLastRoute } from "../../../../../src/config/sessions.js";
 import { danger, logVerbose, shouldLogVerbose } from "../../../../../src/globals.js";
 import { resolveAgentOutboundIdentity } from "../../../../../src/infra/outbound/identity.js";
+import { sendMessage } from "../../../../../src/infra/outbound/message.js";
 import { resolvePinnedMainDmOwnerFromAllowlist } from "../../../../../src/security/dm-policy-shared.js";
 import { editSlackMessage, reactSlackMessage, removeSlackReaction } from "../../actions.js";
 import { createSlackDraftStream } from "../../draft-stream.js";
