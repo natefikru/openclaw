@@ -98,6 +98,19 @@ export async function resolveSlackChannelAllowlist(params: {
   entries: string[];
   client?: WebClient;
 }): Promise<SlackChannelResolution[]> {
+  // Skip the expensive conversations.list call when all entries are already
+  // channel IDs (C/G prefix). This avoids Slack API rate limits on large workspaces.
+  const allAreIds = params.entries.every((e) => {
+    const parsed = parseSlackChannelMention(e);
+    return Boolean(parsed.id);
+  });
+  if (allAreIds) {
+    return params.entries.map((entry) => {
+      const parsed = parseSlackChannelMention(entry);
+      return { input: entry, resolved: true, id: parsed.id, name: parsed.name };
+    });
+  }
+
   const client = params.client ?? createSlackWebClient(params.token);
   const channels = await listSlackChannels(client);
   return resolveSlackAllowlistEntries<

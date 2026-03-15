@@ -123,14 +123,16 @@ export async function handleSlackAction(
   const allowUserWrites = account.config.userTokenReadOnly === false;
 
   // Choose the most appropriate token for Slack read/write operations.
+  // Writes always use the user token so messages appear as the human user.
+  // The bot token is never used for writes.
   const getTokenForOperation = (operation: "read" | "write") => {
     if (operation === "read") {
       return userToken ?? botToken;
     }
-    if (!allowUserWrites) {
-      return botToken;
+    if (!allowUserWrites || !userToken) {
+      throw new Error("Slack writes require a user token with userTokenReadOnly set to false.");
     }
-    return botToken ?? userToken;
+    return userToken;
   };
 
   const buildActionOpts = (operation: "read" | "write") => {

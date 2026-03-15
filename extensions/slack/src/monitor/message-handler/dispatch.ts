@@ -30,7 +30,30 @@ import {
   readSlackReplyBlocks,
   resolveSlackThreadTs,
 } from "../replies.js";
+import { resolveSlackChannelLabel } from "../channel-config.js";
+import { triageByRules, triageWithLlm } from "../triage/classify.js";
+import { flushDigestToTelegram } from "../triage/digest-cron.js";
+import { enqueueDigestMessage } from "../triage/digest-queue.js";
 import type { PreparedSlackMessage } from "./types.js";
+
+let digestTimerStarted = false;
+function ensureDigestTimer(cfg: Parameters<typeof flushDigestToTelegram>[0], channelConfig: {
+  triageDigestIntervalMs?: number;
+  triageDigestTo?: string;
+  triageDigestChannel?: string;
+}): void {
+  if (digestTimerStarted) return;
+  digestTimerStarted = true;
+  const intervalMs = channelConfig.triageDigestIntervalMs ?? 7200000;
+  const to = channelConfig.triageDigestTo ?? "5176316563";
+  const channel = channelConfig.triageDigestChannel ?? "telegram";
+  setInterval(() => {
+    flushDigestToTelegram(cfg, { to, channel }).catch((err) => {
+      logVerbose(`triage digest timer error: ${String(err)}`);
+    });
+  }, intervalMs);
+  logVerbose(`triage digest timer started (interval: ${intervalMs}ms)`);
+}
 
 function hasMedia(payload: ReplyPayload): boolean {
   return Boolean(payload.mediaUrl) || (payload.mediaUrls?.length ?? 0) > 0;
@@ -75,10 +98,143 @@ function shouldUseStreaming(params: {
   return true;
 }
 
+async function resolveUserMentions(
+  text: string,
+  resolveUserName: (userId: string) => Promise<{ name?: string }>,
+): Promise<string> {
+  const mentionPattern = /<@([A-Z0-9]+)>/gi;
+  const matches = [...text.matchAll(mentionPattern)];
+  if (matches.length === 0) return text;
+
+  let resolved = text;
+  for (const match of matches) {
+    const userId = match[1];
+    const user = await resolveUserName(userId);
+    const displayName = user.name ?? userId;
+    resolved = resolved.replace(match[0], `@${displayName}`);
+  }
+  return resolved;
+}
+
+async function forwardToMonitorTarget(prepared: PreparedSlackMessage): Promise<void> {
+  const { channelConfig, ctxPayload, message, ctx } = prepared;
+  const forwardTo = channelConfig?.monitorForwardTo;
+  if (!forwardTo) {
+    ctx.runtime.error?.(
+      "slack monitor-only: monitorForwardTo not configured, skipping forward",
+    );
+    return;
+  }
+
+  const channelInfo = await ctx.resolveChannelName(message.channel);
+  const channelLabel = channelInfo?.name
+    ? `#${channelInfo.name}`
+    : resolveSlackChannelLabel({ channelId: message.channel });
+  const senderName = ctxPayload.SenderName ?? message.user ?? "unknown";
+  const rawText = ctxPayload.RawBody ?? message.text ?? "";
+  const messageText = await resolveUserMentions(rawText, ctx.resolveUserName);
+  const forwardChannel = channelConfig?.monitorForwardChannel ?? "telegram";
+  const isThreadReply = Boolean(message.thread_ts && message.thread_ts !== message.ts);
+  const threadLabel = isThreadReply ? " (thread)" : "";
+
+  const forwardedText = `[${channelLabel}${threadLabel}] ${senderName}: ${messageText}`;
+
+  try {
+    await sendMessage({
+      to: forwardTo,
+      content: forwardedText,
+      channel: forwardChannel,
+      cfg: ctx.cfg,
+    });
+    logVerbose(`slack monitor-only: forwarded message from ${channelLabel} to ${forwardChannel}:${forwardTo}`);
+  } catch (err) {
+    ctx.runtime.error?.(
+      danger(`slack monitor-only: failed to forward to ${forwardChannel}: ${String(err)}`),
+    );
+  }
+}
+
+async function triageAndDispatch(prepared: PreparedSlackMessage): Promise<void> {
+  const { channelConfig, ctxPayload, message, ctx } = prepared;
+  if (!channelConfig) return;
+
+  ensureDigestTimer(ctx.cfg, channelConfig);
+
+  const channelInfo = await ctx.resolveChannelName(message.channel);
+  const channelLabel = channelInfo?.name
+    ? `#${channelInfo.name}`
+    : resolveSlackChannelLabel({ channelId: message.channel });
+  const senderName = ctxPayload.SenderName ?? message.user ?? "unknown";
+  const rawText = ctxPayload.RawBody ?? message.text ?? "";
+  const messageText = await resolveUserMentions(rawText, ctx.resolveUserName);
+  const isThreadReply = Boolean(message.thread_ts && message.thread_ts !== message.ts);
+
+  // Phase 1: rule-based triage
+  const ruleResult = triageByRules({
+    channelConfig,
+    messageText,
+    userId: message.user,
+    botId: message.bot_id,
+    subtype: message.subtype,
+    isDirectMessage: prepared.isDirectMessage,
+    channelId: message.channel,
+  });
+
+  let decision = ruleResult?.decision;
+  let reason = ruleResult?.reason ?? "";
+
+  // Phase 2: LLM classification for messages not caught by rules
+  if (!decision) {
+    const llmResult = await triageWithLlm({
+      channelLabel,
+      senderName,
+      messageText,
+      cfg: ctx.cfg,
+      triageModel: channelConfig.triageModel,
+    });
+    decision = llmResult.decision;
+    reason = llmResult.reason;
+  }
+
+  logVerbose(`triage: ${channelLabel} ${senderName}: ${decision} (${reason})`);
+
+  if (decision === "IMMEDIATE") {
+    await forwardToMonitorTarget(prepared);
+    return;
+  }
+
+  if (decision === "DIGEST") {
+    const { randomBytes } = await import("node:crypto");
+    enqueueDigestMessage({
+      id: randomBytes(8).toString("hex"),
+      timestamp: Date.now(),
+      channelId: message.channel,
+      channelLabel,
+      senderName,
+      messageText,
+      isThreadReply,
+    });
+    return;
+  }
+
+  // DROP: do nothing
+}
+
 export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessage) {
   const { ctx, account, message, route } = prepared;
   const cfg = ctx.cfg;
   const runtime = ctx.runtime;
+
+  // Monitor-only mode: forward to another channel (e.g. Telegram) without
+  // invoking the LLM or replying in Slack.
+  if (prepared.channelConfig?.monitorOnly) {
+    if (prepared.channelConfig.triageEnabled) {
+      await triageAndDispatch(prepared);
+    } else {
+      await forwardToMonitorTarget(prepared);
+    }
+    return;
+  }
 
   // Resolve agent identity for Slack chat:write.customize overrides.
   const outboundIdentity = resolveAgentOutboundIdentity(cfg, route.agentId);

@@ -45,6 +45,32 @@ export type SlackChannelConfig = {
   skills?: string[];
   /** Optional system prompt for this channel. */
   systemPrompt?: string;
+  /** Monitor-only mode: forward messages to another channel instead of replying. */
+  monitorOnly?: boolean;
+  /** Target for monitor-only forwarding (e.g. Telegram chat ID). */
+  monitorForwardTo?: string;
+  /** Channel to forward to (e.g. "telegram"). Default: "telegram". */
+  monitorForwardChannel?: string;
+  /** Enable triage classification for monitor-only channels. */
+  triageEnabled?: boolean;
+  /** LLM model ref for triage classification (default: openai/gpt-5-mini). */
+  triageModel?: string;
+  /** Keywords that trigger immediate forwarding. */
+  triageImmediateKeywords?: string[];
+  /** User IDs whose @mentions trigger immediate forwarding. */
+  triageImmediateMentions?: string[];
+  /** Map of user ID to channel IDs where their messages are immediate ("*" for all). */
+  triageImmediateUsers?: Record<string, string[]>;
+  /** Drop bot messages when triage is enabled (default: true). */
+  triageDropBots?: boolean;
+  /** User IDs whose messages are always dropped (ignored). */
+  triageDropUsers?: string[];
+  /** Telegram chat ID for digest delivery. */
+  triageDigestTo?: string;
+  /** Channel for digest delivery (default: "telegram"). */
+  triageDigestChannel?: string;
+  /** Digest flush interval in milliseconds (default: 7200000 = 2h). */
+  triageDigestIntervalMs?: number;
 };
 
 export type SlackReactionNotificationMode = "off" | "own" | "all" | "allowlist";

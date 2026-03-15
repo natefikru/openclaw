@@ -821,6 +821,19 @@ export const SlackChannelSchema = z
     users: z.array(z.union([z.string(), z.number()])).optional(),
     skills: z.array(z.string()).optional(),
     systemPrompt: z.string().optional(),
+    monitorOnly: z.boolean().optional(),
+    monitorForwardTo: z.string().optional(),
+    monitorForwardChannel: z.string().optional(),
+    triageEnabled: z.boolean().optional(),
+    triageModel: z.string().optional(),
+    triageImmediateKeywords: z.array(z.string()).optional(),
+    triageImmediateMentions: z.array(z.string()).optional(),
+    triageImmediateUsers: z.record(z.string(), z.array(z.string())).optional(),
+    triageDropBots: z.boolean().optional(),
+    triageDropUsers: z.array(z.string()).optional(),
+    triageDigestTo: z.string().optional(),
+    triageDigestChannel: z.string().optional(),
+    triageDigestIntervalMs: z.number().optional(),
   })
   .strict();
 

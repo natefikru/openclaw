@@ -15,6 +15,19 @@ export type SlackChannelConfigResolved = {
   users?: Array<string | number>;
   skills?: string[];
   systemPrompt?: string;
+  monitorOnly?: boolean;
+  monitorForwardTo?: string;
+  monitorForwardChannel?: string;
+  triageEnabled?: boolean;
+  triageModel?: string;
+  triageImmediateKeywords?: string[];
+  triageImmediateMentions?: string[];
+  triageImmediateUsers?: Record<string, string[]>;
+  triageDropBots?: boolean;
+  triageDropUsers?: string[];
+  triageDigestTo?: string;
+  triageDigestChannel?: string;
+  triageDigestIntervalMs?: number;
   matchKey?: string;
   matchSource?: ChannelMatchSource;
 };
@@ -27,6 +40,19 @@ export type SlackChannelConfigEntry = {
   users?: Array<string | number>;
   skills?: string[];
   systemPrompt?: string;
+  monitorOnly?: boolean;
+  monitorForwardTo?: string;
+  monitorForwardChannel?: string;
+  triageEnabled?: boolean;
+  triageModel?: string;
+  triageImmediateKeywords?: string[];
+  triageImmediateMentions?: string[];
+  triageImmediateUsers?: Record<string, string[]>;
+  triageDropBots?: boolean;
+  triageDropUsers?: string[];
+  triageDigestTo?: string;
+  triageDigestChannel?: string;
+  triageDigestIntervalMs?: number;
 };
 
 export type SlackChannelConfigEntries = Record<string, SlackChannelConfigEntry>;
@@ -145,6 +171,19 @@ export function resolveSlackChannelConfig(params: {
   const users = firstDefined(resolved.users, fallback?.users);
   const skills = firstDefined(resolved.skills, fallback?.skills);
   const systemPrompt = firstDefined(resolved.systemPrompt, fallback?.systemPrompt);
+  const monitorOnly = firstDefined(resolved.monitorOnly, fallback?.monitorOnly);
+  const monitorForwardTo = firstDefined(resolved.monitorForwardTo, fallback?.monitorForwardTo);
+  const monitorForwardChannel = firstDefined(resolved.monitorForwardChannel, fallback?.monitorForwardChannel);
+  const triageEnabled = firstDefined(resolved.triageEnabled, fallback?.triageEnabled);
+  const triageModel = firstDefined(resolved.triageModel, fallback?.triageModel);
+  const triageImmediateKeywords = firstDefined(resolved.triageImmediateKeywords, fallback?.triageImmediateKeywords);
+  const triageImmediateMentions = firstDefined(resolved.triageImmediateMentions, fallback?.triageImmediateMentions);
+  const triageImmediateUsers = firstDefined(resolved.triageImmediateUsers, fallback?.triageImmediateUsers);
+  const triageDropBots = firstDefined(resolved.triageDropBots, fallback?.triageDropBots);
+  const triageDropUsers = firstDefined(resolved.triageDropUsers, fallback?.triageDropUsers);
+  const triageDigestTo = firstDefined(resolved.triageDigestTo, fallback?.triageDigestTo);
+  const triageDigestChannel = firstDefined(resolved.triageDigestChannel, fallback?.triageDigestChannel);
+  const triageDigestIntervalMs = firstDefined(resolved.triageDigestIntervalMs, fallback?.triageDigestIntervalMs);
   const result: SlackChannelConfigResolved = {
     allowed,
     requireMention,
@@ -152,6 +191,19 @@ export function resolveSlackChannelConfig(params: {
     users,
     skills,
     systemPrompt,
+    monitorOnly,
+    monitorForwardTo,
+    monitorForwardChannel,
+    triageEnabled,
+    triageModel,
+    triageImmediateKeywords,
+    triageImmediateMentions,
+    triageImmediateUsers,
+    triageDropBots,
+    triageDropUsers,
+    triageDigestTo,
+    triageDigestChannel,
+    triageDigestIntervalMs,
   };
   return applyChannelMatchMeta(result, match);
 }
