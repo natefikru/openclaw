@@ -1,6 +1,6 @@
-import type { OpenClawConfig } from "../../../config/config.js";
-import { logVerbose } from "../../../globals.js";
-import { sendMessage } from "../../../infra/outbound/message.js";
+import type { OpenClawConfig } from "../../../../../src/config/config.js";
+import { logVerbose } from "../../../../../src/globals.js";
+import { sendMessage } from "../../../../../src/infra/outbound/message.js";
 import { loadAndFlushDigest } from "./digest-queue.js";
 import type { DigestEntry } from "./types.js";
 

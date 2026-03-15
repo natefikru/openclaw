@@ -1,9 +1,9 @@
 import { completeSimple, type TextContent } from "@mariozechner/pi-ai";
-import { getApiKeyForModel, requireApiKey } from "../../../agents/model-auth.js";
-import { resolveModelRefFromString, type ModelRef } from "../../../agents/model-selection.js";
-import { resolveModel } from "../../../agents/pi-embedded-runner/model.js";
-import type { OpenClawConfig } from "../../../config/config.js";
-import { logVerbose } from "../../../globals.js";
+import { getApiKeyForModel, requireApiKey } from "../../../../../src/agents/model-auth.js";
+import { resolveModelRefFromString, type ModelRef } from "../../../../../src/agents/model-selection.js";
+import { resolveModel } from "../../../../../src/agents/pi-embedded-runner/model.js";
+import type { OpenClawConfig } from "../../../../../src/config/config.js";
+import { logVerbose } from "../../../../../src/globals.js";
 import type { SlackChannelConfigResolved } from "../channel-config.js";
 import type { TriageDecision, TriageResult } from "./types.js";
 
